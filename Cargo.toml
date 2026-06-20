@@ -1,0 +1,12 @@
+[package]
+name = "libra"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+iced = { version = "0.13", features = ["tokio", "async-std"] }
+tokio = { version = "1", features = ["full"] }
+idevice = { version = "0.1.56", features = ["full"] }
+futures = "0.3"
+zeroize_derive = "^1.5"
+open = "5.3.5"

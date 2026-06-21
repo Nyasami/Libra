@@ -7,8 +7,7 @@ use crate::ui::app::LibraApp;
 pub fn view(app: &LibraApp) -> Element<'_, Message> {
     if let Some(udid) = &app.selected_device_udid {
         if let Some(dev) = app.devices.iter().find(|d| d.udid == *udid) {
-            let content = column![
-                text(format!("{}", dev.name)).size(30),
+            let info_content = column![
                 Space::with_height(20),
                 labeled_content("UDID", dev.udid.clone()),
                 labeled_content("Model", format!("{}", dev.model)),
@@ -23,16 +22,24 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 labeled_content("Serial Number", dev.serial_number.clone()),
                 labeled_content("ECID", dev.ecid.clone()),
                 labeled_content("Storage", format!("{} free of {}", dev.storage_free, dev.storage_total)),
-                
-                Space::with_height(10),
-                text("Raw Dump:"),
-                text(&dev.raw_dump),
             ].spacing(10);
+
+            let row_content = if let Some(png) = &dev.wallpaper {
+                row![
+                    info_content,
+                    Space::with_width(100),
+                    iced::widget::image(iced::widget::image::Handle::from_bytes(png.clone()))
+                        .height(Length::Fixed(400.0))
+                ]
+            } else {
+                row![info_content]
+            };
 
             return column![
                 text("Device Info").size(40),
+                text(format!("{}", dev.name)).size(30),
                 Space::with_height(20),
-                scrollable(content)
+                scrollable(row_content)
             ].into();
         } else {
             return column![

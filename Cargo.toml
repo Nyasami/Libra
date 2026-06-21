@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-iced = { version = "0.13", features = ["tokio", "async-std"] }
+iced = { version = "0.13", features = ["tokio", "async-std", "image"] }
 tokio = { version = "1", features = ["full"] }
 idevice = { version = "0.1.56", features = ["full"] }
 futures = "0.3"

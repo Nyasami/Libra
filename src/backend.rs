@@ -85,6 +85,14 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut storage_total: String = String::from("Unknown");
         let mut storage_free: String = String::from("Unknown");
         let mut raw_dump: String = String::from("(Not available)");
+        let mut wallpaper: Option<Vec<u8>> = None;
+        
+        // sptringbaord for wallpaper
+        if let Ok(mut sbs) = idevice::services::springboardservices::SpringBoardServicesClient::connect(&provider).await {
+            if let Ok(png) = sbs.get_home_screen_wallpaper_preview_pngdata().await {
+                wallpaper = Some(png);
+            }
+        }
 
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
@@ -159,6 +167,7 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
             storage_free,
             udid: device.udid.clone(),
             raw_dump,
+            wallpaper,
         });
     }
 

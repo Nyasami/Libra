@@ -21,4 +21,5 @@ pub struct DeviceInfo {
     pub udid: String,
 
     pub raw_dump: String,
+    pub wallpaper: Option<Vec<u8>>,
 }

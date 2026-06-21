@@ -72,35 +72,57 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut ios_version: String = String::from("Unknown");
         let mut model: String = String::from("Unknown");
         let mut product_type: String = String::from("Unknown");
+        let mut activation_state: String = String::from("Unknown");
+        let mut cpu_architecture: String = String::from("Unknown");
+        let mut device_class: String = String::from("Unknown");
+        let mut hardware_model: String = String::from("Unknown");           
+        let mut serial_number: String = String::from("Unknown");
+        let mut region_info: String = String::from("Unknown");
         let mut raw_dump: String = String::from("(Not available)");
 
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
                 let _ = lockdown.start_session(&pairing_file).await;
             }
-
-            if let Ok(Some(val)) = lockdown.get_value(Some("DeviceName"), None).await.map(|v| v.as_string().map(String::from)) {
-                name = val;
-            }
-            if let Ok(Some(val)) = lockdown.get_value(Some("ProductVersion"), None).await.map(|v| v.as_string().map(String::from)) {
-                ios_version = val;
-            }
-            if let Ok(Some(val)) = lockdown.get_value(Some("ProductType"), None).await.map(|v| v.as_string().map(String::from)) {
-                product_type = val;
-                model = crate::utils::human_readable_model(&product_type);
-            }
+            
+            // lets get the whole dict instead
             if let Ok(val) = lockdown.get_value(None, None).await {
+                if let Some(dict) = val.as_dictionary() {
+                    let get_str = |key: &str| -> Option<String> {
+                        dict.get(key).and_then(|v| v.as_string().map(String::from))
+                    };
+
+                    if let Some(v) = get_str("ActivationState") { activation_state = v; }
+                    if let Some(v) = get_str("CPUArchitecture") { cpu_architecture = v; }
+                    if let Some(v) = get_str("DeviceClass") { device_class = v; }
+                    if let Some(v) = get_str("DeviceName") { name = v; }
+                    if let Some(v) = get_str("HardwareModel") { hardware_model = v; }
+                    if let Some(v) = get_str("ProductVersion") { ios_version = v; }
+                    if let Some(v) = get_str("RegionInfo") { region_info = v; }
+                    if let Some(v) = get_str("SerialNumber") { serial_number = v; }
+                    if let Some(v) = get_str("ProductType") {
+                        product_type = v.clone();
+                        model = crate::utils::human_readable_model(&product_type);
+                    }
+                }
+
                 raw_dump = format!("{:#?}", val);
             }
         }
 
         result.push(DeviceInfo {
-            udid: device.udid.clone(),
+            activation_state,
+            cpu_architecture,
             connection_type: format!("{:?}", device.connection_type),
-            name,
+            device_class,
+            hardware_model,
             ios_version,
             model,
+            name,
             product_type,
+            region_info,
+            serial_number,
+            udid: device.udid.clone(),
             raw_dump,
         });
     }

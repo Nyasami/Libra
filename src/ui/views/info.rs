@@ -14,7 +14,14 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 text(format!("Model: {} - {}", dev.model, dev.product_type)),
                 text(format!("iOS: {}", dev.ios_version)),
                 text(format!("Connection: {}", dev.connection_type)),
-                // text()
+                text(format!("Activation State: {}", dev.activation_state)),
+                text(format!("CPU Architecture: {}", dev.cpu_architecture)),
+                text(format!("Device Class: {}", dev.device_class)),
+                text(format!("Hardware Model: {}", dev.hardware_model)),
+                text(format!("Product Type: {}", dev.product_type)),
+                text(format!("Region: {}", dev.region_info)),
+                text(format!("Serial Number: {}", dev.serial_number)),
+                text(format!("Raw Dump: {}", dev.raw_dump)),
             ].spacing(5);
 
             return column![

@@ -1,5 +1,5 @@
-use iced::widget::{column, scrollable, text, Space};
-use iced::Element;
+use iced::widget::{column, row, scrollable, text, Space};
+use iced::{Element, Length};
 
 use crate::message::Message;
 use crate::ui::app::LibraApp;
@@ -10,21 +10,24 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
             let content = column![
                 text(format!("{}", dev.name)).size(30),
                 Space::with_height(20),
-                text(format!("UDID: {}", dev.udid)),
-                text(format!("Model: {} - {}", dev.model, dev.product_type)),
-                text(format!("iOS: {} ({})", dev.ios_version, dev.build_version)),
-                text(format!("Activation State: {}", dev.activation_state)),
-                text(format!("CPU Architecture: {}", dev.cpu_architecture)),
-                text(format!("Device Class: {}", dev.device_class)),
-                text(format!("Hardware Model: {}", dev.hardware_model)),
-                text(format!("Product Type: {} ({})", dev.product_type, dev.model_number)),
-                text(format!("Region: {}", dev.region_info)),
-                text(format!("IMEI: {}", dev.imei)),
-                text(format!("Serial Number: {}", dev.serial_number)),
-                text(format!("ECID: {}", dev.ecid)),
-                text(format!("Storage: {} free of {}", dev.storage_free, dev.storage_total)),
-                text(format!("Raw Dump: {}", dev.raw_dump)),
-            ].spacing(5);
+                labeled_content("UDID", dev.udid.clone()),
+                labeled_content("Model", format!("{}", dev.model)),
+                labeled_content("iOS", format!("{} ({})", dev.ios_version, dev.build_version)),
+                labeled_content("Activation State", dev.activation_state.clone()),
+                labeled_content("CPU Architecture", dev.cpu_architecture.clone()),
+                labeled_content("Device Class", dev.device_class.clone()),
+                labeled_content("Hardware Model", dev.hardware_model.clone()),
+                labeled_content("Product Type", format!("{} ({})", dev.product_type, dev.model_number)),
+                labeled_content("Region", dev.region_info.clone()),
+                labeled_content("IMEI", dev.imei.clone()),
+                labeled_content("Serial Number", dev.serial_number.clone()),
+                labeled_content("ECID", dev.ecid.clone()),
+                labeled_content("Storage", format!("{} free of {}", dev.storage_free, dev.storage_total)),
+                
+                Space::with_height(10),
+                text("Raw Dump:"),
+                text(&dev.raw_dump),
+            ].spacing(10);
 
             return column![
                 text("Device Info").size(40),
@@ -45,4 +48,16 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
             text("select a device from device tab").size(20),
         ].into()
     }
+}
+
+fn labeled_content<'a>(label: &'a str, value: String) -> Element<'a, Message> {
+    row![
+        text(label).width(Length::Fixed(140.0)),
+        text(value).font(iced::Font {
+            weight: iced::font::Weight::Bold,
+            ..iced::Font::DEFAULT
+        })
+    ]
+    .spacing(10)
+    .into()
 }

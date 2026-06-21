@@ -12,6 +12,8 @@ pub struct DeviceInfo {
     pub product_type: String,
     pub region_info: String,
     pub serial_number: String,
+    pub storage_total: String,
+    pub storage_free: String,
     pub udid: String,
 
     pub raw_dump: String,

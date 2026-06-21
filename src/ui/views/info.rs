@@ -21,6 +21,7 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 text(format!("Product Type: {}", dev.product_type)),
                 text(format!("Region: {}", dev.region_info)),
                 text(format!("Serial Number: {}", dev.serial_number)),
+                text(format!("Storage: {} free of {}", dev.storage_free, dev.storage_total)),
                 text(format!("Raw Dump: {}", dev.raw_dump)),
             ].spacing(5);
 

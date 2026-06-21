@@ -75,14 +75,25 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut activation_state: String = String::from("Unknown");
         let mut cpu_architecture: String = String::from("Unknown");
         let mut device_class: String = String::from("Unknown");
-        let mut hardware_model: String = String::from("Unknown");           
+        let mut hardware_model: String = String::from("Unknown");
         let mut serial_number: String = String::from("Unknown");
         let mut region_info: String = String::from("Unknown");
+        let mut storage_total: String = String::from("Unknown");
+        let mut storage_free: String = String::from("Unknown");
         let mut raw_dump: String = String::from("(Not available)");
 
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
                 let _ = lockdown.start_session(&pairing_file).await;
+            }
+            // storage afc
+            if let Ok(mut afc) = idevice::services::afc::AfcClient::connect(&provider).await {
+                if let Ok(info) = afc.get_device_info().await {
+                    let total_gb = info.total_bytes as f64 / 1_000_000_000.0;
+                    let free_gb = info.free_bytes as f64 / 1_000_000_000.0;
+                    storage_total = format!("{:.2} GB", total_gb);
+                    storage_free = format!("{:.2} GB", free_gb);
+                }
             }
             
             // lets get the whole dict instead
@@ -122,6 +133,8 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
             product_type,
             region_info,
             serial_number,
+            storage_total,
+            storage_free,
             udid: device.udid.clone(),
             raw_dump,
         });

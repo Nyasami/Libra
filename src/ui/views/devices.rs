@@ -27,7 +27,7 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
         let card = column![
             text(format!("{}", dev.name)).size(24),
             text(format!("{}", dev.model)),
-            text(format!("iOS: {}", dev.ios_version)),
+            text(format!("iOS {}", dev.ios_version)),
             text(format!("UDID: {}", dev.udid)),
             text(format!("Connection: {}", dev.connection_type)),
             Rule::horizontal(50)

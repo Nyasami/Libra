@@ -73,10 +73,14 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut model: String = String::from("Unknown");
         let mut product_type: String = String::from("Unknown");
         let mut activation_state: String = String::from("Unknown");
+        let mut build_version: String = String::from("Unknown");
         let mut cpu_architecture: String = String::from("Unknown");
         let mut device_class: String = String::from("Unknown");
         let mut hardware_model: String = String::from("Unknown");
+        let mut model_number: String = String::from("Unknown");
         let mut serial_number: String = String::from("Unknown");
+        let mut imei: String = String::from("Unknown");
+        let mut ecid: String = String::from("Unknown");
         let mut region_info: String = String::from("Unknown");
         let mut storage_total: String = String::from("Unknown");
         let mut storage_free: String = String::from("Unknown");
@@ -103,14 +107,22 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
                         dict.get(key).and_then(|v| v.as_string().map(String::from))
                     };
 
+                    let get_int = |key: &str| -> Option<u64> {
+                        dict.get(key).and_then(|v| v.as_unsigned_integer())
+                    };
+
                     if let Some(v) = get_str("ActivationState") { activation_state = v; }
+                    if let Some(v) = get_str("BuildVersion") { build_version = v; }
                     if let Some(v) = get_str("CPUArchitecture") { cpu_architecture = v; }
                     if let Some(v) = get_str("DeviceClass") { device_class = v; }
                     if let Some(v) = get_str("DeviceName") { name = v; }
                     if let Some(v) = get_str("HardwareModel") { hardware_model = v; }
+                    if let Some(v) = get_str("InternationalMobileEquipmentIdentity") { imei = v; }
+                    if let Some(v) = get_str("RegulatoryModelNumbers") { model_number = v; }
                     if let Some(v) = get_str("ProductVersion") { ios_version = v; }
                     if let Some(v) = get_str("RegionInfo") { region_info = v; }
                     if let Some(v) = get_str("SerialNumber") { serial_number = v; }
+                    if let Some(v) = get_int("UniqueChipID") { ecid = format!("0x{:X}", v); }
                     if let Some(v) = get_str("ProductType") {
                         product_type = v.clone();
                         model = crate::utils::human_readable_model(&product_type);
@@ -119,16 +131,26 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
 
                 raw_dump = format!("{:#?}", val);
             }
+
+            // nessesary keys i need apart from the whole dict dump
+            // https://theapplewiki.com/wiki/List_of_MobileGestalt_keys
+            if let Ok(Some(val)) = lockdown.get_value(Some("RegulatoryModelNumber"), None).await.map(|v| v.as_string().map(String::from)) {
+                model_number = val;
+            }
         }
 
         result.push(DeviceInfo {
             activation_state,
+            build_version,
             cpu_architecture,
             connection_type: format!("{:?}", device.connection_type),
             device_class,
             hardware_model,
+            imei,
+            ecid,
             ios_version,
             model,
+            model_number,
             name,
             product_type,
             region_info,

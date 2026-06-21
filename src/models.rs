@@ -20,6 +20,10 @@ pub struct DeviceInfo {
     pub storage_free: String,
     pub udid: String,
 
+    // batteries
+    pub battery_capacity: u8,
+    pub battery_is_charging: bool,
+
     pub raw_dump: String,
-    pub wallpaper: Option<Vec<u8>>,
+    pub wallpaper: Option<iced::widget::image::Handle>,
 }

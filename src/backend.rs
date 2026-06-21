@@ -85,15 +85,18 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut storage_total: String = String::from("Unknown");
         let mut storage_free: String = String::from("Unknown");
         let mut raw_dump: String = String::from("(Not available)");
-        let mut wallpaper: Option<Vec<u8>> = None;
+        let mut wallpaper: Option<iced::widget::image::Handle> = None;
+
+        let mut battery_capacity: u8 = 0;
+        let mut battery_is_charging: bool = false;
         
         // sptringbaord for wallpaper
         if let Ok(mut sbs) = idevice::services::springboardservices::SpringBoardServicesClient::connect(&provider).await {
             if let Ok(png) = sbs.get_home_screen_wallpaper_preview_pngdata().await {
-                wallpaper = Some(png);
+                wallpaper = Some(iced::widget::image::Handle::from_bytes(png));
             }
         }
-
+        
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
                 let _ = lockdown.start_session(&pairing_file).await;
@@ -145,10 +148,22 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
             if let Ok(Some(val)) = lockdown.get_value(Some("RegulatoryModelNumber"), None).await.map(|v| v.as_string().map(String::from)) {
                 model_number = val;
             }
+            if let Ok(val) = lockdown.get_value(None, Some("com.apple.mobile.battery")).await {
+                if let Some(dict) = val.as_dictionary() {
+                    // println!("{:#?}", dict);
+                    let capacity = dict.get("BatteryCurrentCapacity").and_then(|v| v.as_unsigned_integer()).unwrap_or(0);
+                    let is_charging = dict.get("BatteryIsCharging").and_then(|v| v.as_boolean()).unwrap_or(false);
+                    
+                    battery_capacity = capacity as u8;
+                    battery_is_charging = is_charging;
+                }
+            }
         }
 
         result.push(DeviceInfo {
             activation_state,
+            battery_capacity,
+            battery_is_charging,
             build_version,
             cpu_architecture,
             connection_type: format!("{:?}", device.connection_type),

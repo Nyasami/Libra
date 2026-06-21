@@ -8,7 +8,7 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
     if let Some(udid) = &app.selected_device_udid {
         if let Some(dev) = app.devices.iter().find(|d| d.udid == *udid) {
             let info_content = column![
-                Space::with_height(20),
+                labeled_content("", format!("{} - {}%", if dev.battery_is_charging { "Charging" } else { "Not Charging" }, dev.battery_capacity)),
                 labeled_content("UDID", dev.udid.clone()),
                 labeled_content("Model", format!("{}", dev.model)),
                 labeled_content("iOS", format!("{} ({})", dev.ios_version, dev.build_version)),
@@ -24,11 +24,11 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 labeled_content("Storage", format!("{} free of {}", dev.storage_free, dev.storage_total)),
             ].spacing(10);
 
-            let row_content = if let Some(png) = &dev.wallpaper {
+            let row_content = if let Some(handle) = &dev.wallpaper {
                 row![
                     info_content,
                     Space::with_width(100),
-                    iced::widget::image(iced::widget::image::Handle::from_bytes(png.clone()))
+                    iced::widget::image(handle.clone())
                         .height(Length::Fixed(400.0))
                 ]
             } else {
@@ -39,7 +39,10 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 text("Device Info").size(40),
                 text(format!("{}", dev.name)).size(30),
                 Space::with_height(20),
-                scrollable(row_content)
+                scrollable(row_content),
+                // scrollable(
+                //     text(format!("{}", dev.raw_dump))
+                // )
             ].into();
         } else {
             return column![

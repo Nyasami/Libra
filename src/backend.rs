@@ -1,4 +1,4 @@
-use crate::models::DeviceInfo;
+use crate::models::{DeviceInfo, DeviceInfoState};
 use crate::message::Message;
 use iced::stream;
 use futures::stream::StreamExt;
@@ -90,25 +90,9 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut battery_capacity: u8 = 0;
         let mut battery_is_charging: bool = false;
         
-        // sptringbaord for wallpaper
-        if let Ok(mut sbs) = idevice::services::springboardservices::SpringBoardServicesClient::connect(&provider).await {
-            if let Ok(png) = sbs.get_home_screen_wallpaper_preview_pngdata().await {
-                wallpaper = Some(iced::widget::image::Handle::from_bytes(png));
-            }
-        }
-        
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
                 let _ = lockdown.start_session(&pairing_file).await;
-            }
-            // storage afc
-            if let Ok(mut afc) = idevice::services::afc::AfcClient::connect(&provider).await {
-                if let Ok(info) = afc.get_device_info().await {
-                    let total_gb = info.total_bytes as f64 / 1_000_000_000.0;
-                    let free_gb = info.free_bytes as f64 / 1_000_000_000.0;
-                    storage_total = format!("{:.2} GB", total_gb);
-                    storage_free = format!("{:.2} GB", free_gb);
-                }
             }
             
             // lets get the whole dict instead
@@ -148,16 +132,6 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
             if let Ok(Some(val)) = lockdown.get_value(Some("RegulatoryModelNumber"), None).await.map(|v| v.as_string().map(String::from)) {
                 model_number = val;
             }
-            if let Ok(val) = lockdown.get_value(None, Some("com.apple.mobile.battery")).await {
-                if let Some(dict) = val.as_dictionary() {
-                    // println!("{:#?}", dict);
-                    let capacity = dict.get("BatteryCurrentCapacity").and_then(|v| v.as_unsigned_integer()).unwrap_or(0);
-                    let is_charging = dict.get("BatteryIsCharging").and_then(|v| v.as_boolean()).unwrap_or(false);
-                    
-                    battery_capacity = capacity as u8;
-                    battery_is_charging = is_charging;
-                }
-            }
         }
 
         result.push(DeviceInfo {
@@ -187,4 +161,87 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
     }
 
     Ok(result)
+}
+
+/// those info from device are updated every now and then, so we polling it every 5s
+pub fn poll_device_info_state(udid: String) -> iced::Subscription<Message> {
+    struct PollInfoState;
+    iced::Subscription::run_with_id(
+        (std::any::TypeId::of::<PollInfoState>(), udid.clone()),
+        stream::channel(1, move |mut output| async move {
+            let Ok(addr) = UsbmuxdAddr::from_env_var() else { return; };
+            let Ok(mut usbmuxd) = UsbmuxdConnection::default().await else { return; };
+            let Ok(found_devices) = usbmuxd.get_devices().await else { return; };
+            let Some(device) = found_devices.into_iter().find(|d| d.udid == udid) else { return; };
+            
+            let provider = device.to_provider(addr.clone(), "libra");
+
+            let Ok(mut lockdown) = LockdownClient::connect(&provider).await else { return; };
+            
+            if let Ok(pairing_file) = provider.get_pairing_file().await {
+                let _ = lockdown.start_session(&pairing_file).await;
+            }
+
+            let mut afc = idevice::services::afc::AfcClient::connect(&provider).await.ok();
+            let mut sbs = idevice::services::springboardservices::SpringBoardServicesClient::connect(&provider).await.ok();
+
+            loop {
+                let (battery_capacity, battery_is_charging) = get_battery(&mut lockdown).await;
+                
+                let (storage_total, storage_free) = if let Some(afc) = &mut afc {
+                    get_storage(afc).await
+                } else {
+                    (String::from("Unknown"), String::from("Unknown"))
+                };
+                // still not sure polling wallpaper every 5s is a good idea =.=
+                let wallpaper = if let Some(sbs) = &mut sbs {
+                    get_wallpaper(sbs).await
+                } else {
+                    None
+                };
+
+                let state = DeviceInfoState {
+                    udid: udid.clone(),
+                    storage_total,
+                    storage_free,
+                    battery_capacity,
+                    battery_is_charging,
+                    wallpaper,
+                };
+
+                if output.send(Message::DeviceInfoStateRefreshed(Ok(vec![state]))).await.is_err() {
+                    break;
+                }
+
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        })
+    )
+}
+
+async fn get_wallpaper(sbs: &mut idevice::services::springboardservices::SpringBoardServicesClient) -> Option<iced::widget::image::Handle> {
+    if let Ok(png) = sbs.get_home_screen_wallpaper_preview_pngdata().await {
+        return Some(iced::widget::image::Handle::from_bytes(png));
+    }
+    None
+}
+
+async fn get_storage(afc: &mut idevice::services::afc::AfcClient) -> (String, String) {
+    if let Ok(info) = afc.get_device_info().await {
+        let total_gb = info.total_bytes as f64 / 1_000_000_000.0;
+        let free_gb = info.free_bytes as f64 / 1_000_000_000.0;
+        return (format!("{:.2} GB", total_gb), format!("{:.2} GB", free_gb));
+    }
+    (String::from("Unknown"), String::from("Unknown"))
+}
+
+async fn get_battery(lockdown: &mut LockdownClient) -> (u8, bool) {
+    if let Ok(val) = lockdown.get_value(None, Some("com.apple.mobile.battery")).await {
+        if let Some(dict) = val.as_dictionary() {
+            let capacity = dict.get("BatteryCurrentCapacity").and_then(|v| v.as_unsigned_integer()).unwrap_or(0);
+            let is_charging = dict.get("BatteryIsCharging").and_then(|v| v.as_boolean()).unwrap_or(false);
+            return (capacity as u8, is_charging);
+        }
+    }
+    (0, false)
 }

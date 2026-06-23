@@ -3,7 +3,7 @@ use iced::{Element, Length, Theme, Task};
 
 use crate::models::DeviceInfo;
 use crate::message::{Message, CurrentView};
-use crate::backend::{fetch_devices, listen_for_devices};
+use crate::backend::{fetch_devices, listen_for_devices, poll_device_info_state};
 use crate::ui::views;
 pub struct LibraApp {
     pub devices: Vec<DeviceInfo>,
@@ -55,6 +55,22 @@ impl LibraApp {
                 let _ = open::that(url);
                 Task::none()
             }
+            Message::DeviceInfoStateRefreshed(Ok(states)) => {
+                for state in states {
+                    if let Some(device) = self.devices.iter_mut().find(|d| d.udid == state.udid) {
+                        device.storage_total = state.storage_total;
+                        device.storage_free = state.storage_free;
+                        device.battery_capacity = state.battery_capacity;
+                        device.battery_is_charging = state.battery_is_charging;
+                        device.wallpaper = state.wallpaper;
+                    }
+                }
+                Task::none()
+            }
+            Message::DeviceInfoStateRefreshed(Err(error)) => {
+                self.error = Some(error);
+                Task::none()
+            }
         }
     }
 
@@ -95,7 +111,11 @@ impl LibraApp {
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        listen_for_devices()
+        let mut subs = vec![listen_for_devices()];
+        for dev in &self.devices {
+            subs.push(poll_device_info_state(dev.udid.clone()));
+        }
+        iced::Subscription::batch(subs)
     }
 
     pub fn theme(&self) -> Theme {

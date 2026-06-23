@@ -20,4 +20,6 @@ pub enum Message {
     SelectDevice(String),   
     /// Open Url
     OpenUrl(String),
+    /// Refresh device info state
+    DeviceInfoStateRefreshed(Result<Vec<crate::models::DeviceInfoState>, String>),
 }

@@ -60,8 +60,17 @@ pub fn listen_for_devices() -> iced::Subscription<Message> {
 /// fetch device info from lockdown
 pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
     let addr = UsbmuxdAddr::from_env_var().map_err(|e| e.to_string())?;
-    let mut usbmuxd = UsbmuxdConnection::default().await.map_err(|e| e.to_string())?;
-    let found_devices = usbmuxd.get_devices().await.map_err(|e| e.to_string())?;
+    // on linux usbmuxd stopped when no device connected i think 
+    // so handle error and return empty list
+    // havent tested on windows yet :<
+    let mut usbmuxd = match UsbmuxdConnection::default().await {
+        Ok(c) => c,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let found_devices = match usbmuxd.get_devices().await {
+        Ok(d) => d,
+        Err(_) => return Ok(Vec::new()),
+    };
 
     let mut result = Vec::new();
 

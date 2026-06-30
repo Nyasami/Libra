@@ -10,3 +10,4 @@ idevice = { version = "0.1.56", features = ["full"] }
 futures = "0.3"
 zeroize_derive = "^1.5"
 open = "5.3.5"
+plist = "1.9.0"

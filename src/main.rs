@@ -8,8 +8,10 @@ use iced::{window, Size};
 use ui::app::LibraApp;
 
 pub fn main() -> iced::Result {
+    #[allow(unused_mut)]
     let mut window_settings = window::Settings {
         size: Size::new(1280.0, 720.0),
+        min_size: Some(Size::new(800.0, 600.0)),
         ..Default::default()
     };
 

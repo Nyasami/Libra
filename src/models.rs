@@ -24,9 +24,22 @@ pub struct DeviceInfo {
     // batteries
     pub battery_capacity: u8,
     pub battery_is_charging: bool,
+    pub battery_data: Option<BatteryData>,
 
     pub raw_dump: String,
     pub wallpaper: Option<iced::widget::image::Handle>,
+}
+// BatteryData
+#[derive(Debug, Clone, Default)]
+pub struct BatteryData {
+    pub absolute_capacity: Option<u64>,
+    pub apple_raw_max_capacity: Option<u64>,
+    pub cycle_count: Option<u64>,
+    pub design_capacity: Option<u64>,
+    pub date_of_first_use: Option<u64>,
+    pub manufacture_date: Option<u64>,
+    pub serial: Option<String>,
+    pub raw_dump: Option<String>,
 }
 
 /// DeviceInfoState
@@ -38,5 +51,6 @@ pub struct DeviceInfoState {
     pub storage_free: String,
     pub battery_capacity: u8,
     pub battery_is_charging: bool,
+    pub battery_data: Option<BatteryData>,
     pub wallpaper: Option<iced::widget::image::Handle>,
 }

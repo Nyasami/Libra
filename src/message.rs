@@ -22,4 +22,6 @@ pub enum Message {
     OpenUrl(String),
     /// Refresh device info state
     DeviceInfoStateRefreshed(Result<Vec<crate::models::DeviceInfoState>, String>),
+    /// Copy to clipboard
+    CopyToClipboard(String),
 }

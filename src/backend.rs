@@ -1,4 +1,4 @@
-use crate::models::{DeviceInfo, DeviceInfoState};
+use crate::models::{DeviceInfo, DeviceInfoState, BatteryData};
 use crate::message::Message;
 use iced::stream;
 use futures::stream::StreamExt;
@@ -91,13 +91,14 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
         let mut imei: String = String::from("Unknown");
         let mut ecid: String = String::from("Unknown");
         let mut region_info: String = String::from("Unknown");
-        let mut storage_total: String = String::from("Unknown");
-        let mut storage_free: String = String::from("Unknown");
         let mut raw_dump: String = String::from("(Not available)");
-        let mut wallpaper: Option<iced::widget::image::Handle> = None;
+        let storage_total: String = String::from("Unknown");
+        let storage_free: String = String::from("Unknown");
+        let wallpaper: Option<iced::widget::image::Handle> = None;
 
-        let mut battery_capacity: u8 = 0;
-        let mut battery_is_charging: bool = false;
+        let battery_capacity: u8 = 0;
+        let battery_is_charging: bool = false;
+        let battery_data: Option<BatteryData> = None;
         
         if let Ok(mut lockdown) = LockdownClient::connect(&provider).await {
             if let Ok(pairing_file) = provider.get_pairing_file().await {
@@ -147,6 +148,7 @@ pub async fn fetch_devices() -> Result<Vec<DeviceInfo>, String> {
             activation_state,
             battery_capacity,
             battery_is_charging,
+            battery_data,
             build_version,
             cpu_architecture,
             connection_type: format!("{:?}", device.connection_type),
@@ -193,9 +195,16 @@ pub fn poll_device_info_state(udid: String) -> iced::Subscription<Message> {
 
             let mut afc = idevice::services::afc::AfcClient::connect(&provider).await.ok();
             let mut sbs = idevice::services::springboardservices::SpringBoardServicesClient::connect(&provider).await.ok();
+            let mut diag = idevice::services::diagnostics_relay::DiagnosticsRelayClient::connect(&provider).await.ok();
 
             loop {
                 let (battery_capacity, battery_is_charging) = get_battery(&mut lockdown).await;
+                
+                let battery_data = if let Some(diag) = &mut diag {
+                    get_detailed_battery(diag).await
+                } else {
+                    None
+                };
                 
                 let (storage_total, storage_free) = if let Some(afc) = &mut afc {
                     get_storage(afc).await
@@ -215,6 +224,7 @@ pub fn poll_device_info_state(udid: String) -> iced::Subscription<Message> {
                     storage_free,
                     battery_capacity,
                     battery_is_charging,
+                    battery_data,
                     wallpaper,
                 };
 
@@ -253,4 +263,33 @@ async fn get_battery(lockdown: &mut LockdownClient) -> (u8, bool) {
         }
     }
     (0, false)
+}
+
+async fn get_detailed_battery(diag: &mut idevice::services::diagnostics_relay::DiagnosticsRelayClient) -> Option<BatteryData> {
+    if let Ok(Some(registry)) = diag.ioregistry(None, Some("AppleSmartBattery"), Some("AppleSmartBattery")).await {
+        let mut battery = BatteryData::default();
+        
+        let get_int = |dict: &plist::Dictionary, key: &str| -> Option<u64> {
+            dict.get(key).and_then(|v| v.as_unsigned_integer())
+        };
+        
+        let get_str = |dict: &plist::Dictionary, key: &str| -> Option<String> {
+            dict.get(key).and_then(|v| v.as_string().map(String::from))
+        };
+
+        battery.absolute_capacity = get_int(&registry, "AbsoluteCapacity");
+        battery.apple_raw_max_capacity = get_int(&registry, "AppleRawMaxCapacity");
+        
+        if let Some(battery_data) = registry.get("BatteryData").and_then(|v| v.as_dictionary()) {
+            battery.cycle_count = get_int(battery_data, "CycleCount");
+            battery.design_capacity = get_int(battery_data, "DesignCapacity");
+            battery.date_of_first_use = get_int(battery_data, "DateOfFirstUse");
+            battery.manufacture_date = get_int(battery_data, "ManufactureDate");
+            battery.serial = get_str(battery_data, "Serial");
+        }
+        
+        battery.raw_dump = Some(format!("{:#?}", registry));
+        return Some(battery);
+    }
+    None
 }

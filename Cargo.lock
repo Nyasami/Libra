@@ -2636,6 +2636,7 @@ dependencies = [
  "iced",
  "idevice",
  "open",
+ "plist",
  "tokio",
  "zeroize_derive",
 ]

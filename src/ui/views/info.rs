@@ -1,4 +1,4 @@
-use iced::widget::{column, row, scrollable, text, Space};
+use iced::widget::{button, column, container, row, scrollable, text, Space};
 use iced::{Element, Length};
 
 use crate::message::Message;
@@ -7,7 +7,7 @@ use crate::ui::app::LibraApp;
 pub fn view(app: &LibraApp) -> Element<'_, Message> {
     if let Some(udid) = &app.selected_device_udid {
         if let Some(dev) = app.devices.iter().find(|d| d.udid == *udid) {
-            let info_content = column![
+            let mut info_content = column![
                 labeled_content("", format!("{} - {}%", if dev.battery_is_charging { "Charging" } else { "Not Charging" }, dev.battery_capacity)),
                 labeled_content("UDID", dev.udid.clone()),
                 labeled_content("Model", format!("{}", dev.model)),
@@ -24,6 +24,17 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 labeled_content("Storage", format!("{} free of {}", dev.storage_free, dev.storage_total)),
             ].spacing(10);
 
+            if let Some(battery_data) = &dev.battery_data {
+                if let (Some(max), Some(design), Some(cycles)) = (battery_data.apple_raw_max_capacity, battery_data.design_capacity, battery_data.cycle_count) {
+                    let wear = if design > 0 {
+                        (max as f64 / design as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    info_content = info_content.push(labeled_content("Battery Health", format!("{:.2}% - {} cycles", wear, cycles)));
+                }
+            }
+
             let row_content = if let Some(handle) = &dev.wallpaper {
                 row![
                     info_content,
@@ -35,27 +46,45 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 row![info_content]
             };
 
-            return column![
-                text("Device Info").size(40),
-                text(format!("{}", dev.name)).size(30),
-                Space::with_height(20),
-                scrollable(row_content),
-                // scrollable(
-                //     text(format!("{}", dev.raw_dump))
-                // )
-            ].into();
+            let copy_buttons = row![
+                button("Copy raw Device Info").on_press(Message::CopyToClipboard(dev.raw_dump.clone())).style(button::text),
+                button("Copy raw Battery Data").on_press(Message::CopyToClipboard(
+                    dev.battery_data.as_ref().and_then(|b| b.raw_dump.clone()).unwrap_or_else(|| String::from("No battery data"))
+                )).style(button::text)
+            ].spacing(10);
+
+            let centered_content = container(
+                column![
+                    scrollable(row_content),
+                    Space::with_height(20),
+                    copy_buttons
+                ]
+            )
+            .width(Length::Fill)
+            .center_x(Length::Fill);
+
+            return scrollable(
+                column![
+                    text("Device Info").size(40),
+                    text(format!("{}", dev.name)).size(30),
+                    Space::with_height(20),
+                    centered_content
+                ]
+            ).into();
         } else {
-            return column![
-                text("Device Info").size(40),
-                Space::with_height(20),
-                text("Device disconnected").size(20),
-            ].into();
+            return scrollable(
+                column![
+                    text("Device Info").size(40),
+                    Space::with_height(20),
+                    container(text("Device disconnected").size(20)).width(Length::Fill).center_x(Length::Fill),
+                ]
+            ).into();
         }
     } else {
         column![
             text("Device Info").size(40),
             Space::with_height(20),
-            text("select a device from device tab").size(20),
+            container(text("select a device from device tab").size(20)).width(Length::Fill).center_x(Length::Fill),
         ].into()
     }
 }

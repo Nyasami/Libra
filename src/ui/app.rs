@@ -62,6 +62,7 @@ impl LibraApp {
                         device.storage_free = state.storage_free;
                         device.battery_capacity = state.battery_capacity;
                         device.battery_is_charging = state.battery_is_charging;
+                        device.battery_data = state.battery_data.clone();
                         device.wallpaper = state.wallpaper;
                     }
                 }
@@ -70,6 +71,9 @@ impl LibraApp {
             Message::DeviceInfoStateRefreshed(Err(error)) => {
                 self.error = Some(error);
                 Task::none()
+            }
+            Message::CopyToClipboard(content) => {
+                iced::clipboard::write(content)
             }
         }
     }

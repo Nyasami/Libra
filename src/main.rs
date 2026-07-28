@@ -10,6 +10,7 @@ use ui::app::LibraApp;
 pub fn main() -> iced::Result {
     let mut window_settings = window::Settings {
         size: Size::new(1280.0, 720.0),
+        min_size: Some(Size::new(800.0, 600.0)),
         ..Default::default()
     };
 

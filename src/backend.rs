@@ -293,3 +293,36 @@ async fn get_detailed_battery(diag: &mut idevice::services::diagnostics_relay::D
     }
     None
 }
+
+// power managements
+
+pub async fn restart_device(udid: String) -> Result<(), String> {
+    let mut diag = get_diag_client(udid).await?;
+    diag.restart().await.map_err(|e| e.to_string())
+}
+
+pub async fn shutdown_device(udid: String) -> Result<(), String> {
+    let mut diag = get_diag_client(udid).await?;
+    diag.shutdown().await.map_err(|e| e.to_string())
+}
+
+pub async fn sleep_device(udid: String) -> Result<(), String> {
+    let mut diag = get_diag_client(udid).await?;
+    diag.sleep().await.map_err(|e| e.to_string())
+}
+
+async fn get_diag_client(udid: String) -> Result<idevice::services::diagnostics_relay::DiagnosticsRelayClient, String> {
+    let addr = UsbmuxdAddr::from_env_var().map_err(|e| e.to_string())?;
+    let mut usbmuxd = UsbmuxdConnection::default().await.map_err(|e| e.to_string())?;
+    let found_devices = usbmuxd.get_devices().await.map_err(|e| e.to_string())?;
+    let device = found_devices.into_iter().find(|d| d.udid == udid).ok_or("Device not found")?;
+    
+    let provider = device.to_provider(addr, "libra");
+    let mut lockdown = LockdownClient::connect(&provider).await.map_err(|e| e.to_string())?;
+    
+    if let Ok(pairing_file) = provider.get_pairing_file().await {
+        let _ = lockdown.start_session(&pairing_file).await;
+    }
+
+    idevice::services::diagnostics_relay::DiagnosticsRelayClient::connect(&provider).await.map_err(|e| e.to_string())
+}

@@ -24,4 +24,12 @@ pub enum Message {
     DeviceInfoStateRefreshed(Result<Vec<crate::models::DeviceInfoState>, String>),
     /// Copy to clipboard
     CopyToClipboard(String),
+    /// Restart device
+    RestartDevice(String),
+    /// Shutdown device
+    ShutdownDevice(String),
+    /// Sleep device
+    SleepDevice(String),
+    /// Device command result
+    DeviceCommandResult(Result<(), String>),
 }

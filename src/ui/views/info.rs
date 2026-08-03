@@ -35,15 +35,29 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 }
             }
 
+            let power_buttons = row![
+                button(text("Restart")).style(button::text).on_press(Message::RestartDevice(dev.udid.clone())),
+                button(text("Shutdown")).style(button::text).on_press(Message::ShutdownDevice(dev.udid.clone())),
+                button(text("Sleep")).style(button::text).on_press(Message::SleepDevice(dev.udid.clone()))
+            ].spacing(10);
+
             let row_content = if let Some(handle) = &dev.wallpaper {
                 row![
                     info_content,
                     Space::with_width(100),
-                    iced::widget::image(handle.clone())
-                        .height(Length::Fixed(400.0))
+                    column![
+                        iced::widget::image(handle.clone())
+                            .height(Length::Fixed(400.0)),
+                        Space::with_height(15),
+                        container(power_buttons)
+                    ].align_x(iced::alignment::Horizontal::Center)
                 ]
             } else {
-                row![info_content]
+                row![
+                    info_content,
+                    Space::with_width(100),
+                    container(power_buttons).width(Length::Fill).center_x(Length::Fill)
+                ]
             };
 
             let copy_buttons = row![
@@ -57,7 +71,7 @@ pub fn view(app: &LibraApp) -> Element<'_, Message> {
                 column![
                     scrollable(row_content),
                     Space::with_height(20),
-                    copy_buttons
+                    copy_buttons,
                 ]
             )
             .width(Length::Fill)

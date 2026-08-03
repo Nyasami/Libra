@@ -3,7 +3,7 @@ use iced::{Element, Length, Theme, Task};
 
 use crate::models::DeviceInfo;
 use crate::message::{Message, CurrentView};
-use crate::backend::{fetch_devices, listen_for_devices, poll_device_info_state};
+use crate::backend::{fetch_devices, listen_for_devices, poll_device_info_state, restart_device, shutdown_device, sleep_device};
 use crate::ui::views;
 pub struct LibraApp {
     pub devices: Vec<DeviceInfo>,
@@ -74,6 +74,23 @@ impl LibraApp {
             }
             Message::CopyToClipboard(content) => {
                 iced::clipboard::write(content)
+            }
+            Message::RestartDevice(udid) => {
+                Task::perform(restart_device(udid), Message::DeviceCommandResult)
+            }
+            Message::ShutdownDevice(udid) => {
+                Task::perform(shutdown_device(udid), Message::DeviceCommandResult)
+            }
+            Message::SleepDevice(udid) => {
+                Task::perform(sleep_device(udid), Message::DeviceCommandResult)
+            }
+            Message::DeviceCommandResult(Ok(())) => {
+                self.error = None;
+                Task::none()
+            }
+            Message::DeviceCommandResult(Err(e)) => {
+                self.error = Some(e);
+                Task::none()
             }
         }
     }

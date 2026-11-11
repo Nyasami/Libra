@@ -1,15 +1,20 @@
 use iced::widget::{button, column, container, row, text, Rule, Space};
-use iced::{Element, Length, Theme, Task};
+use iced::{Element, Length, Task, Theme};
 
-use crate::models::DeviceInfo;
-use crate::message::{Message, CurrentView};
-use crate::backend::{fetch_devices, listen_for_devices, poll_device_info_state, restart_device, shutdown_device, sleep_device};
+use crate::backend::{
+    fetch_devices, listen_for_devices, poll_device_info_state, restart_device, shutdown_device,
+    sleep_device,
+};
+use crate::message::{CurrentView, Message};
+use crate::models::{DeviceInfo, InstalledApp};
 use crate::ui::views;
 pub struct LibraApp {
     pub devices: Vec<DeviceInfo>,
     pub error: Option<String>,
     pub selected_device_udid: Option<String>,
     pub current_view: CurrentView,
+    pub installed_apps: Vec<InstalledApp>,
+    pub installed_apps_error: Option<String>,
 }
 
 impl LibraApp {
@@ -20,6 +25,8 @@ impl LibraApp {
                 error: None,
                 selected_device_udid: None,
                 current_view: CurrentView::Devices,
+                installed_apps: Vec::new(),
+                installed_apps_error: None,
             },
             Task::perform(fetch_devices(), Message::DevicesLoaded),
         )
@@ -31,15 +38,32 @@ impl LibraApp {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::LoadDevices => {
-                Task::perform(fetch_devices(), Message::DevicesLoaded)
-            }
-            Message::DevicesLoaded(Ok(devices)) => {
-                self.devices = devices;
+            Message::LoadDevices => Task::perform(fetch_devices(), Message::DevicesLoaded),
+            Message::DevicesLoaded(result) => {
+                match result {
+                    Ok(devices) => {
+                        self.devices = devices;
+                    }
+                    Err(error) => {
+                        self.error = Some(error);
+                    }
+                }
                 Task::none()
             }
-            Message::DevicesLoaded(Err(error)) => {
-                self.error = Some(error);
+            Message::InstalledAppsLoaded(udid, result) => {
+                if self.selected_device_udid.as_ref() != Some(&udid) {
+                    return Task::none();
+                }
+                match result {
+                    Ok(apps) => {
+                        self.installed_apps = apps;
+                        self.installed_apps_error = None;
+                    }
+                    Err(error) => {
+                        self.installed_apps_error = Some(error);
+                        self.installed_apps.clear()
+                    }
+                }
                 Task::none()
             }
             Message::SelectDevice(udid) => {
@@ -72,9 +96,7 @@ impl LibraApp {
                 self.error = Some(error);
                 Task::none()
             }
-            Message::CopyToClipboard(content) => {
-                iced::clipboard::write(content)
-            }
+            Message::CopyToClipboard(content) => iced::clipboard::write(content),
             Message::RestartDevice(udid) => {
                 Task::perform(restart_device(udid), Message::DeviceCommandResult)
             }
@@ -104,9 +126,11 @@ impl LibraApp {
                 Space::with_height(10),
                 nav_button("Info", CurrentView::Info, &self.current_view),
                 Space::with_height(10),
+                nav_button("Apps", CurrentView::Apps, &self.current_view),
+                Space::with_height(10),
                 nav_button("Credits", CurrentView::Credits, &self.current_view),
             ]
-            .width(Length::Fill)
+            .width(Length::Fill),
         )
         .padding(30)
         .width(Length::Fixed(250.0))
@@ -115,6 +139,7 @@ impl LibraApp {
         let content: Element<'_, Message> = match self.current_view {
             CurrentView::Devices => views::devices::view(self),
             CurrentView::Info => views::info::view(self),
+            CurrentView::Apps => views::apps::view(),
             CurrentView::Credits => views::credits::view(),
         };
 
@@ -144,7 +169,11 @@ impl LibraApp {
     }
 }
 
-fn nav_button<'a>(label: &'a str, target: CurrentView, current: &CurrentView) -> Element<'a, Message> {
+fn nav_button<'a>(
+    label: &'a str,
+    target: CurrentView,
+    current: &CurrentView,
+) -> Element<'a, Message> {
     let mut btn = button(text(label).size(18))
         .style(button::text)
         .width(Length::Fill)

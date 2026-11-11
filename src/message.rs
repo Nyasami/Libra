@@ -1,35 +1,30 @@
-use crate::models::DeviceInfo;
+use crate::models::{DeviceInfo, InstalledApp};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CurrentView {
     Devices,
     Info,
+    Apps,
     Credits,
 }
 
 /// messages
 #[derive(Debug, Clone)]
 pub enum Message {
-    /// Switch views
-    SwitchView(CurrentView),
-    /// Load Devices
+    // init
     LoadDevices,
-    /// Device Loaded Result
     DevicesLoaded(Result<Vec<DeviceInfo>, String>),
-    /// Select Device
-    SelectDevice(String),   
-    /// Open Url
-    OpenUrl(String),
-    /// Refresh device info state
+    InstalledAppsLoaded(String, Result<Vec<InstalledApp>, String>),
     DeviceInfoStateRefreshed(Result<Vec<crate::models::DeviceInfoState>, String>),
-    /// Copy to clipboard
+    // app
+    SwitchView(CurrentView),
+    SelectDevice(String),
     CopyToClipboard(String),
-    /// Restart device
+    // power
     RestartDevice(String),
-    /// Shutdown device
     ShutdownDevice(String),
-    /// Sleep device
     SleepDevice(String),
-    /// Device command result
     DeviceCommandResult(Result<(), String>),
+    // misc
+    OpenUrl(String),
 }

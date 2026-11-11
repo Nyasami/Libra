@@ -54,3 +54,10 @@ pub struct DeviceInfoState {
     pub battery_data: Option<BatteryData>,
     pub wallpaper: Option<iced::widget::image::Handle>,
 }
+
+#[derive(Debug, Clone)]
+pub struct InstalledApp {
+    pub display_name: String,
+    pub bundle_id: String,
+    pub version: String,
+}
